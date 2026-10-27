@@ -9,6 +9,9 @@
   ],
   "license": "MIT",
   "environment": "client",
+  "mixins": [
+    "waypointcommand.client.mixins.json"
+  ],
   "entrypoints": {
     "client": [
       "com.waypointcommand.WaypointCommandClient"

@@ -126,7 +126,7 @@ Loader 最低要求由 Fabric API `0.161.0+26.2` 的依赖 `fabricloader >= 0.18
 成品：
 
 ```text
-build/libs/waypoint-command-1.0.0.jar
+build/libs/waypoint-command-1.0.1.jar
 ```
 
 把该 JAR 和 Xaero's Minimap、Fabric API 一起放入 `mods` 目录即可。
@@ -142,6 +142,5 @@ build/libs/waypoint-command-1.0.0.jar
 
 临时路径点利用 Xaero 的 `temporary` 标记，Xaero 自己会在保存时跳过它。
 
-
-
+Minecraft 26.2 自带一个用于追踪实体的原版 `/waypoint` 指令。本模组会让聊天栏语法高亮使用自己的客户端命令树，避免输入 `/waypoint <x> <y> <z>` 时坐标被原版规则标红。
 
