@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "waypointcommand",
+  "version": "${version}",
+  "name": "Waypoint Command",
+  "description": "Adds client-side /waypoint <x> <y> <z> [name] commands for Xaero's Minimap.",
+  "authors": [
+    "WaypointCommand contributors"
+  ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.waypointcommand.WaypointCommandClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": ">=0.161.0",
+    "xaerominimap": ">=26.6.1"
+  }
+}
+
