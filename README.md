@@ -11,6 +11,13 @@
 /waypoint <x> <y> <z> <名称>
 ```
 
+`x`、`y`、`z` 都支持 `~` 和 `~<偏移>`。例如只指定高度为当前位置：
+
+```text
+/waypoint 1000 ~ 1000
+/waypoint 1000 ~16 1000
+```
+
 示例：
 
 ```text
@@ -38,8 +45,10 @@
 模组维度也可以使用维度 ID：
 
 ```text
-/waypoint dimension <namespace:path> <x> <y> <z> [名称]
+/waypoint dimension [namespace:path] <x> <y> <z> [名称]
 ```
+
+省略维度 ID 时写入当前维度。
 
 例如：
 
@@ -53,6 +62,7 @@
 
 ```text
 /waypoint temp <x> <y> <z> [名称]
+/waypoint temporary <x> <y> <z> [名称]
 /waypoint temp <overworld|nether|end> <x> <y> <z> [名称]
 /waypoint temp dimension <维度ID> <x> <y> <z> [名称]
 ```
@@ -60,7 +70,8 @@
 示例：
 
 ```text
-/waypoint temp 1000 128 1000 临时集合点
+/waypoint temp 1000 ~ 1000 临时集合点
+/waypoint temporary 1000 128 1000
 ```
 
 ### 目的地路径点
@@ -69,6 +80,7 @@
 
 ```text
 /waypoint destination <x> <y> <z> [名称]
+/waypoint dest <x> <y> <z> [名称]
 /waypoint destination <overworld|nether|end> <x> <y> <z> [名称]
 /waypoint destination dimension <维度ID> <x> <y> <z> [名称]
 ```
@@ -82,9 +94,10 @@
 ## 默认表现
 
 - 普通路径点颜色为浅蓝，图标为 `W`。
-- 临时路径点颜色为黄色，图标为 `T`，不会写入存档。
+- 临时路径点颜色为黄色，图标为 `T`，不会写入存档；使用 Xaero 官方临时路径点创建流程。
 - 目的地路径点颜色为金色，图标为 `D`。
 - 名称省略时自动使用 `路径点 <x>, <y>, <z>`。
+- `x`、`y`、`z` 支持 `~` 和 `~<偏移>`；相对坐标以玩家当前位置为基准。
 - 名称最长 64 个字符。
 - 默认写入当前维度；指定 `overworld`、`nether`、`end` 或 `dimension <维度ID>` 时写入对应维度。
 - 目标维度必须已经由 Xaero 创建。若提示找不到维度数据，请先进入该维度一次。
@@ -126,7 +139,7 @@ Loader 最低要求由 Fabric API `0.161.0+26.2` 的依赖 `fabricloader >= 0.18
 成品：
 
 ```text
-build/libs/waypoint-command-1.0.1.jar
+build/libs/waypoint-command-1.0.2.jar
 ```
 
 把该 JAR 和 Xaero's Minimap、Fabric API 一起放入 `mods` 目录即可。

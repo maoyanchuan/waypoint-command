@@ -1,15 +1,16 @@
 package com.waypointcommand;
 
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.ChatFormatting;
+import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -25,88 +26,54 @@ import xaero.hud.minimap.world.MinimapWorld;
 import xaero.hud.minimap.world.container.MinimapWorldRootContainer;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 public final class WaypointCommandClient implements ClientModInitializer {
     private static final int MAX_NAME_LENGTH = 64;
 
     @Override
     public void onInitializeClient() {
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            LiteralArgumentBuilder<FabricClientCommandSource> root = ClientCommands.literal("waypoint")
-                    .executes(context -> showUsage(context.getSource()));
-
-            addCoordinateArguments(root, WaypointKind.NORMAL, null);
-            addDimensionArguments(root, WaypointKind.NORMAL);
-            root.then(createKindCommand(WaypointKind.TEMPORARY));
-            root.then(createKindCommand(WaypointKind.DESTINATION));
-
-            dispatcher.register(root);
-        });
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> registerCommands(dispatcher));
     }
 
-    private static LiteralArgumentBuilder<FabricClientCommandSource> createKindCommand(WaypointKind kind) {
-        LiteralArgumentBuilder<FabricClientCommandSource> command = ClientCommands.literal(kind.literal);
+    static void registerCommands(com.mojang.brigadier.CommandDispatcher<FabricClientCommandSource> dispatcher) {
+        LiteralArgumentBuilder<FabricClientCommandSource> root = createRootCommand();
+        root.then(createKindCommand("temp", WaypointKind.TEMPORARY));
+        root.then(createKindCommand("temporary", WaypointKind.TEMPORARY));
+        root.then(createKindCommand("destination", WaypointKind.DESTINATION));
+        root.then(createKindCommand("dest", WaypointKind.DESTINATION));
+        dispatcher.register(root);
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> createRootCommand() {
+        LiteralArgumentBuilder<FabricClientCommandSource> root = ClientCommands.literal("waypoint")
+                .executes(context -> showUsage(context.getSource()));
+
+        addCoordinateArguments(root, WaypointKind.NORMAL, null);
+        addDimensionArguments(root, WaypointKind.NORMAL);
+        return root;
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> createKindCommand(
+            String literal,
+            WaypointKind kind
+    ) {
+        LiteralArgumentBuilder<FabricClientCommandSource> command = ClientCommands.literal(literal);
         addCoordinateArguments(command, kind, null);
         addDimensionArguments(command, kind);
         return command;
     }
 
-    private static void addDimensionArguments(LiteralArgumentBuilder<FabricClientCommandSource> parent, WaypointKind kind) {
+    private static void addDimensionArguments(
+            LiteralArgumentBuilder<FabricClientCommandSource> parent,
+            WaypointKind kind
+    ) {
         parent.then(createDimensionCommand("overworld", "主世界", Level.OVERWORLD, kind));
         parent.then(createDimensionCommand("nether", "下界", Level.NETHER, kind));
         parent.then(createDimensionCommand("end", "末地", Level.END, kind));
         parent.then(createCustomDimensionCommand(kind));
-    }
-
-    private static LiteralArgumentBuilder<FabricClientCommandSource> createCustomDimensionCommand(WaypointKind kind) {
-        LiteralArgumentBuilder<FabricClientCommandSource> command = ClientCommands.literal("dimension");
-        RequiredArgumentBuilder<FabricClientCommandSource, String> dimensionId = ClientCommands
-                .argument("dimension_id", StringArgumentType.word());
-        addCustomCoordinateArguments(dimensionId, kind);
-        command.then(dimensionId);
-        return command;
-    }
-
-    private static void addCustomCoordinateArguments(
-            RequiredArgumentBuilder<FabricClientCommandSource, String> parent,
-            WaypointKind kind
-    ) {
-        parent.then(ClientCommands.argument("x", IntegerArgumentType.integer())
-                .then(ClientCommands.argument("y", IntegerArgumentType.integer())
-                        .then(ClientCommands.argument("z", IntegerArgumentType.integer())
-                                .executes(context -> executeWithCustomDimension(context, kind, null))
-                                .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                        .executes(context -> executeWithCustomDimension(
-                                                context,
-                                                kind,
-                                                StringArgumentType.getString(context, "name")))))));
-    }
-
-    private static int executeWithCustomDimension(
-            CommandContext<FabricClientCommandSource> context,
-            WaypointKind kind,
-            String requestedName
-    ) {
-        String dimensionId = StringArgumentType.getString(context, "dimension_id");
-        Identifier identifier = Identifier.tryParse(dimensionId);
-        if (identifier == null) {
-            context.getSource().sendError(Component.literal("无效的维度 ID: " + dimensionId));
-            return 0;
-        }
-
-        DimensionTarget target = new DimensionTarget(
-                identifier.toString(),
-                ResourceKey.create(Registries.DIMENSION, identifier)
-        );
-        return addWaypoint(
-                context.getSource(),
-                kind,
-                target,
-                IntegerArgumentType.getInteger(context, "x"),
-                IntegerArgumentType.getInteger(context, "y"),
-                IntegerArgumentType.getInteger(context, "z"),
-                requestedName
-        );
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> createDimensionCommand(
@@ -120,33 +87,79 @@ public final class WaypointCommandClient implements ClientModInitializer {
         return command;
     }
 
+    private static LiteralArgumentBuilder<FabricClientCommandSource> createCustomDimensionCommand(
+            WaypointKind kind
+    ) {
+        LiteralArgumentBuilder<FabricClientCommandSource> command = ClientCommands.literal("dimension");
+        addCoordinateArguments(command, kind, null);
+
+        RequiredArgumentBuilder<FabricClientCommandSource, Identifier> dimensionId = ClientCommands
+                .argument("dimension_id", IdentifierArgument.id());
+        addCustomCoordinateArguments(dimensionId, kind);
+        command.then(dimensionId);
+        return command;
+    }
+
     private static void addCoordinateArguments(
             LiteralArgumentBuilder<FabricClientCommandSource> parent,
             WaypointKind kind,
             DimensionTarget target
     ) {
-        RequiredArgumentBuilder<FabricClientCommandSource, Integer> coordinates = ClientCommands
-                .argument("x", IntegerArgumentType.integer())
-                .then(ClientCommands.argument("y", IntegerArgumentType.integer())
-                        .then(ClientCommands.argument("z", IntegerArgumentType.integer())
-                                .executes(context -> addWaypoint(
-                                        context.getSource(),
-                                        kind,
-                                        target,
-                                        IntegerArgumentType.getInteger(context, "x"),
-                                        IntegerArgumentType.getInteger(context, "y"),
-                                        IntegerArgumentType.getInteger(context, "z"),
-                                        null))
+        parent.then(ClientCommands.argument("x", CoordinateArgumentType.coordinate())
+                .then(ClientCommands.argument("y", CoordinateArgumentType.coordinate())
+                        .then(ClientCommands.argument("z", CoordinateArgumentType.coordinate())
+                                .executes(context -> executeWaypoint(context, kind, target, null))
                                 .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                        .executes(context -> addWaypoint(
-                                                context.getSource(),
+                                        .executes(context -> executeWaypoint(
+                                                context,
                                                 kind,
                                                 target,
-                                                IntegerArgumentType.getInteger(context, "x"),
-                                                IntegerArgumentType.getInteger(context, "y"),
-                                                IntegerArgumentType.getInteger(context, "z"),
-                                                StringArgumentType.getString(context, "name"))))));
-        parent.then(coordinates);
+                                                StringArgumentType.getString(context, "name")))))));
+    }
+
+    private static void addCustomCoordinateArguments(
+            RequiredArgumentBuilder<FabricClientCommandSource, Identifier> parent,
+            WaypointKind kind
+    ) {
+        parent.then(ClientCommands.argument("x", CoordinateArgumentType.coordinate())
+                .then(ClientCommands.argument("y", CoordinateArgumentType.coordinate())
+                        .then(ClientCommands.argument("z", CoordinateArgumentType.coordinate())
+                                .executes(context -> executeWithCustomDimension(context, kind, null))
+                                .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                        .executes(context -> executeWithCustomDimension(
+                                                context,
+                                                kind,
+                                                StringArgumentType.getString(context, "name")))))));
+    }
+
+    private static int executeWaypoint(
+            CommandContext<FabricClientCommandSource> context,
+            WaypointKind kind,
+            DimensionTarget target,
+            String requestedName
+    ) throws CommandSyntaxException {
+        return addWaypoint(
+                context.getSource(),
+                kind,
+                target,
+                CoordinateArgumentType.resolve(context, "x"),
+                CoordinateArgumentType.resolve(context, "y"),
+                CoordinateArgumentType.resolve(context, "z"),
+                requestedName
+        );
+    }
+
+    private static int executeWithCustomDimension(
+            CommandContext<FabricClientCommandSource> context,
+            WaypointKind kind,
+            String requestedName
+    ) throws CommandSyntaxException {
+        Identifier identifier = context.getArgument("dimension_id", Identifier.class);
+        DimensionTarget target = new DimensionTarget(
+                identifier.toString(),
+                ResourceKey.create(Registries.DIMENSION, identifier)
+        );
+        return executeWaypoint(context, kind, target, requestedName);
     }
 
     private static int showUsage(FabricClientCommandSource source) {
@@ -155,12 +168,14 @@ public final class WaypointCommandClient implements ClientModInitializer {
                 .withStyle(ChatFormatting.GRAY));
         source.sendFeedback(Component.literal("/waypoint <overworld|nether|end> <x> <y> <z> [名称]")
                 .withStyle(ChatFormatting.GRAY));
-        source.sendFeedback(Component.literal("/waypoint dimension <维度ID> <x> <y> <z> [名称]")
+        source.sendFeedback(Component.literal("/waypoint dimension [维度ID] <x> <y> <z> [名称]")
                 .withStyle(ChatFormatting.GRAY));
-        source.sendFeedback(Component.literal("/waypoint temp [overworld|nether|end] <x> <y> <z> [名称]")
+        source.sendFeedback(Component.literal("/waypoint temp|temporary [维度] <x> <y> <z> [名称]")
                 .withStyle(ChatFormatting.GRAY));
-        source.sendFeedback(Component.literal("/waypoint destination [overworld|nether|end] <x> <y> <z> [名称]")
+        source.sendFeedback(Component.literal("/waypoint destination|dest [维度] <x> <y> <z> [名称]")
                 .withStyle(ChatFormatting.GRAY));
+        source.sendFeedback(Component.literal("坐标可用 ~ 或 ~偏移，例如 /waypoint 100 ~ 100")
+                .withStyle(ChatFormatting.DARK_GRAY));
         return 0;
     }
 
@@ -194,23 +209,33 @@ public final class WaypointCommandClient implements ClientModInitializer {
         }
 
         String name = normalizeName(requestedName, x, y, z);
-        WaypointPurpose purpose = kind == WaypointKind.DESTINATION
-                ? WaypointPurpose.DESTINATION
-                : WaypointPurpose.NORMAL;
-        Waypoint waypoint = new Waypoint(
-                x,
-                y,
-                z,
-                name,
-                kind.symbol,
-                kind.color,
-                purpose,
-                kind.temporary,
-                true
-        );
-        waypointSet.add(waypoint);
+        Waypoint waypoint;
+        if (kind == WaypointKind.TEMPORARY) {
+            waypoint = createTemporaryWaypoint(session, world, waypointSet, x, y, z);
+            if (waypoint == null) {
+                source.sendError(Component.literal("Xaero 未创建临时路径点，请确认小地图路径点功能已开启。"));
+                return 0;
+            }
+            waypoint.setName(name);
+            waypoint.setInitials(kind.symbol);
+            waypoint.setWaypointColor(kind.color);
+        } else {
+            WaypointPurpose purpose = kind == WaypointKind.DESTINATION
+                    ? WaypointPurpose.DESTINATION
+                    : WaypointPurpose.NORMAL;
+            waypoint = new Waypoint(
+                    x,
+                    y,
+                    z,
+                    name,
+                    kind.symbol,
+                    kind.color,
+                    purpose,
+                    false,
+                    true
+            );
+            waypointSet.add(waypoint);
 
-        if (!kind.temporary) {
             try {
                 session.getWorldManagerIO().saveWorld(world);
             } catch (IOException exception) {
@@ -249,6 +274,31 @@ public final class WaypointCommandClient implements ClientModInitializer {
         }
 
         return 1;
+    }
+
+    private static Waypoint createTemporaryWaypoint(
+            MinimapSession session,
+            MinimapWorld world,
+            WaypointSet waypointSet,
+            int x,
+            int y,
+            int z
+    ) {
+        Set<Waypoint> before = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Waypoint waypoint : waypointSet.getWaypoints()) {
+            before.add(waypoint);
+        }
+
+        double targetScale = session.getDimensionHelper().getDimCoordinateScale(world);
+        session.getWaypointSession().getTemporaryHandler()
+                .createTemporaryWaypoint(world, x, y, z, true, targetScale);
+
+        for (Waypoint waypoint : waypointSet.getWaypoints()) {
+            if (!before.contains(waypoint)) {
+                return waypoint;
+            }
+        }
+        return null;
     }
 
     private static MinimapWorld findWorld(MinimapSession session, ResourceKey<Level> dimension) {
@@ -311,21 +361,20 @@ public final class WaypointCommandClient implements ClientModInitializer {
     }
 
     private enum WaypointKind {
-        NORMAL("normal", "W", WaypointColor.AQUA, false),
-        TEMPORARY("temp", "T", WaypointColor.YELLOW, true),
-        DESTINATION("destination", "D", WaypointColor.GOLD, false);
+        NORMAL("W", WaypointColor.AQUA),
+        TEMPORARY("T", WaypointColor.YELLOW),
+        DESTINATION("D", WaypointColor.GOLD);
 
-        private final String literal;
         private final String symbol;
         private final WaypointColor color;
-        private final boolean temporary;
 
-        WaypointKind(String literal, String symbol, WaypointColor color, boolean temporary) {
-            this.literal = literal;
+        WaypointKind(String symbol, WaypointColor color) {
             this.symbol = symbol;
             this.color = color;
-            this.temporary = temporary;
         }
     }
 }
+
+
+
 

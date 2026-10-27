@@ -21,6 +21,16 @@ dependencies {
         throw new GradleException("Xaero's Minimap JAR not found: ${xaeroJar}. Set -Pxaero_minimap_jar=<path> or update xaero_minimap_jar in gradle.properties.")
     }
     compileOnly files(xaeroJar)
+    testRuntimeOnly files(xaeroJar)
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
 
 def modVersion = version
@@ -49,7 +59,4 @@ jar {
         rename { "${it}_${projectName}" }
     }
 }
-
-
-
 
