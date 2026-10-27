@@ -32,6 +32,7 @@ import java.util.Set;
 
 public final class WaypointCommandClient implements ClientModInitializer {
     private static final int MAX_NAME_LENGTH = 64;
+    private static final String DEFAULT_NAME = "路径点";
 
     @Override
     public void onInitializeClient() {
@@ -208,7 +209,7 @@ public final class WaypointCommandClient implements ClientModInitializer {
             return 0;
         }
 
-        String name = normalizeName(requestedName, x, y, z);
+        String name = normalizeName(requestedName);
         Waypoint waypoint;
         if (kind == WaypointKind.TEMPORARY) {
             waypoint = createTemporaryWaypoint(session, world, waypointSet, x, y, z);
@@ -344,15 +345,14 @@ public final class WaypointCommandClient implements ClientModInitializer {
         return dimension == null ? "未知维度" : dimension.identifier().toString();
     }
 
-    private static String normalizeName(String requestedName, int x, int y, int z) {
-        String fallback = "路径点 " + x + ", " + y + ", " + z;
+    static String normalizeName(String requestedName) {
         if (requestedName == null) {
-            return fallback;
+            return DEFAULT_NAME;
         }
 
         String name = requestedName.strip().replaceAll("[\\r\\n\\t]", " ");
         if (name.isEmpty()) {
-            return fallback;
+            return DEFAULT_NAME;
         }
         return name.length() <= MAX_NAME_LENGTH ? name : name.substring(0, MAX_NAME_LENGTH);
     }
@@ -374,6 +374,7 @@ public final class WaypointCommandClient implements ClientModInitializer {
         }
     }
 }
+
 
 
 
