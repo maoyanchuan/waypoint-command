@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import xaero.common.HudMod;
 import xaero.common.minimap.waypoints.Waypoint;
 import xaero.hud.minimap.BuiltInHudModules;
 import xaero.hud.minimap.module.MinimapSession;
@@ -24,6 +25,7 @@ import xaero.hud.minimap.waypoint.WaypointPurpose;
 import xaero.hud.minimap.waypoint.set.WaypointSet;
 import xaero.hud.minimap.world.MinimapWorld;
 import xaero.hud.minimap.world.container.MinimapWorldRootContainer;
+import xaero.hud.path.XaeroPath;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -316,12 +318,24 @@ public final class WaypointCommandClient implements ClientModInitializer {
             return null;
         }
 
+        XaeroPath dimensionContainerPath = getDimensionContainerPath(session, root, dimension);
+        String targetNode = getTargetWorldNode(session, dimension, currentWorld);
+        if (targetNode != null) {
+            MinimapWorld exactWorld = session.getWorldManager()
+                    .getWorld(dimensionContainerPath.resolve(targetNode));
+            if (exactWorld != null && dimension.equals(exactWorld.getDimId())) {
+                return exactWorld;
+            }
+        }
+
         MinimapWorld fallback = null;
         for (MinimapWorld world : root.getAllWorldsIterable()) {
             if (!dimension.equals(world.getDimId())) {
                 continue;
             }
-            if (currentWorld != null && currentWorld.getNode().equals(world.getNode())) {
+            if (dimensionContainerPath.equals(world.getContainer().getPath())
+                    && targetNode != null
+                    && targetNode.equals(world.getNode())) {
                 return world;
             }
             if (fallback == null) {
@@ -329,6 +343,34 @@ public final class WaypointCommandClient implements ClientModInitializer {
             }
         }
         return fallback;
+    }
+
+    private static XaeroPath getDimensionContainerPath(
+            MinimapSession session,
+            MinimapWorldRootContainer root,
+            ResourceKey<Level> dimension
+    ) {
+        XaeroPath rootPath = session.getWorldState().getAutoRootContainerPath();
+        String dimensionDirectory = session.getDimensionHelper().getDimensionDirectoryName(dimension);
+        XaeroPath expected = rootPath.resolve(dimensionDirectory);
+        XaeroPath fixed = root.fixPathCharacterCases(expected);
+        return fixed == null ? expected : fixed;
+    }
+
+    private static String getTargetWorldNode(
+            MinimapSession session,
+            ResourceKey<Level> dimension,
+            MinimapWorld currentWorld
+    ) {
+        boolean useWorldmap = HudMod.INSTANCE.getSupportMods().worldmap();
+        String node = session.getWorldStateUpdater().getPotentialWorldNode(dimension, useWorldmap);
+        if (node == null || node.isEmpty()) {
+            node = session.getWorldStateUpdater().getPotentialWorldNode(dimension, false);
+        }
+        if ((node == null || node.isEmpty()) && currentWorld != null) {
+            node = currentWorld.getNode();
+        }
+        return node;
     }
 
     private static String dimensionName(MinimapWorld world) {
@@ -374,6 +416,7 @@ public final class WaypointCommandClient implements ClientModInitializer {
         }
     }
 }
+
 
 
 

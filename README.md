@@ -139,7 +139,7 @@ Loader 最低要求由 Fabric API `0.161.0+26.2` 的依赖 `fabricloader >= 0.18
 成品：
 
 ```text
-build/libs/waypoint-command-1.0.3.jar
+build/libs/waypoint-command-1.0.4.jar
 ```
 
 把该 JAR 和 Xaero's Minimap、Fabric API 一起放入 `mods` 目录即可。
