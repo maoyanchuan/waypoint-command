@@ -110,6 +110,7 @@ public final class WaypointCommandClient implements ClientModInitializer {
     ) {
         parent.then(ClientCommands.argument("x", CoordinateArgumentType.coordinate())
                 .then(ClientCommands.argument("y", CoordinateArgumentType.coordinate())
+                        .executes(context -> executeShortWaypoint(context, kind, target, null))
                         .then(ClientCommands.argument("z", CoordinateArgumentType.coordinate())
                                 .executes(context -> executeWaypoint(context, kind, target, null))
                                 .then(ClientCommands.argument("name", StringArgumentType.greedyString())
@@ -117,7 +118,13 @@ public final class WaypointCommandClient implements ClientModInitializer {
                                                 context,
                                                 kind,
                                                 target,
-                                                StringArgumentType.getString(context, "name")))))));
+                                                StringArgumentType.getString(context, "name")))))
+                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                .executes(context -> executeShortWaypoint(
+                                        context,
+                                        kind,
+                                        target,
+                                        StringArgumentType.getString(context, "name"))))));
     }
 
     private static void addCustomCoordinateArguments(
@@ -126,13 +133,19 @@ public final class WaypointCommandClient implements ClientModInitializer {
     ) {
         parent.then(ClientCommands.argument("x", CoordinateArgumentType.coordinate())
                 .then(ClientCommands.argument("y", CoordinateArgumentType.coordinate())
+                        .executes(context -> executeShortWithCustomDimension(context, kind, null))
                         .then(ClientCommands.argument("z", CoordinateArgumentType.coordinate())
                                 .executes(context -> executeWithCustomDimension(context, kind, null))
                                 .then(ClientCommands.argument("name", StringArgumentType.greedyString())
                                         .executes(context -> executeWithCustomDimension(
                                                 context,
                                                 kind,
-                                                StringArgumentType.getString(context, "name")))))));
+                                                StringArgumentType.getString(context, "name")))))
+                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                .executes(context -> executeShortWithCustomDimension(
+                                        context,
+                                        kind,
+                                        StringArgumentType.getString(context, "name"))))));
     }
 
     private static int executeWaypoint(
@@ -152,6 +165,23 @@ public final class WaypointCommandClient implements ClientModInitializer {
         );
     }
 
+    private static int executeShortWaypoint(
+            CommandContext<FabricClientCommandSource> context,
+            WaypointKind kind,
+            DimensionTarget target,
+            String requestedName
+    ) throws CommandSyntaxException {
+        return addWaypoint(
+                context.getSource(),
+                kind,
+                target,
+                CoordinateArgumentType.resolve(context, "x"),
+                CoordinateArgumentType.currentPlayerY(context.getSource()),
+                CoordinateArgumentType.resolve(context, "y", CoordinateArgumentType.Axis.Z),
+                requestedName
+        );
+    }
+
     private static int executeWithCustomDimension(
             CommandContext<FabricClientCommandSource> context,
             WaypointKind kind,
@@ -165,8 +195,23 @@ public final class WaypointCommandClient implements ClientModInitializer {
         return executeWaypoint(context, kind, target, requestedName);
     }
 
+    private static int executeShortWithCustomDimension(
+            CommandContext<FabricClientCommandSource> context,
+            WaypointKind kind,
+            String requestedName
+    ) throws CommandSyntaxException {
+        Identifier identifier = context.getArgument("dimension_id", Identifier.class);
+        DimensionTarget target = new DimensionTarget(
+                identifier.toString(),
+                ResourceKey.create(Registries.DIMENSION, identifier)
+        );
+        return executeShortWaypoint(context, kind, target, requestedName);
+    }
+
     private static int showUsage(FabricClientCommandSource source) {
         source.sendFeedback(Component.literal("用法:").withStyle(ChatFormatting.YELLOW));
+        source.sendFeedback(Component.literal("/waypoint <x> <z> [名称]  （省略 Y，使用当前高度）")
+                .withStyle(ChatFormatting.GRAY));
         source.sendFeedback(Component.literal("/waypoint <x> <y> <z> [名称]")
                 .withStyle(ChatFormatting.GRAY));
         source.sendFeedback(Component.literal("/waypoint <overworld|nether|end> <x> <y> <z> [名称]")
@@ -416,6 +461,7 @@ public final class WaypointCommandClient implements ClientModInitializer {
         }
     }
 }
+
 
 
 

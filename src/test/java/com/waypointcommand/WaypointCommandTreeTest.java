@@ -8,6 +8,9 @@ import net.minecraft.server.Bootstrap;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WaypointCommandTreeTest {
@@ -30,12 +33,31 @@ class WaypointCommandTreeTest {
     }
 
     @Test
+    void acceptsTwoArgumentCoordinatesWithCurrentY() {
+        assertArguments("waypoint 16591 21695", Set.of("x", "y"));
+        assertArguments("waypoint 16591 21695 基地", Set.of("x", "y", "name"));
+        assertArguments("waypoint nether 16591 21695", Set.of("x", "y"));
+        assertArguments("waypoint temp dimension minecraft:the_nether 16591 21695",
+                Set.of("dimension_id", "x", "y"));
+    }
+
+    @Test
+    void keepsThreeArgumentCoordinatesAsXyz() {
+        assertArguments("waypoint 100 64 200", Set.of("x", "y", "z"));
+        assertArguments("waypoint 100 64 200 基地", Set.of("x", "y", "z", "name"));
+    }
+
+    @Test
     void acceptsDimensionShortcutAndCustomDimension() {
         assertParses("waypoint dimension 100 100 100");
         assertParses("waypoint dimension minecraft:the_nether 100 ~ 100");
     }
 
     private static void assertParses(String command) {
+        assertArguments(command, null);
+    }
+
+    private static void assertArguments(String command, Set<String> expectedArguments) {
         CommandDispatcher<FabricClientCommandSource> dispatcher = new CommandDispatcher<>();
         WaypointCommandClient.registerCommands(dispatcher);
 
@@ -43,7 +65,11 @@ class WaypointCommandTreeTest {
         assertTrue(result.getExceptions().isEmpty(), () -> command + " -> " + result.getExceptions());
         assertTrue(!result.getReader().canRead(), () -> command + " left unparsed input: "
                 + result.getReader().getRemaining());
+        if (expectedArguments != null) {
+            assertEquals(expectedArguments, result.getContext().getArguments().keySet());
+        }
     }
 }
+
 
 

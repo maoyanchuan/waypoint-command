@@ -7,13 +7,18 @@
 默认格式保持不变，名称可以省略：
 
 ```text
+/waypoint <x> <z>
+/waypoint <x> <z> <名称>
 /waypoint <x> <y> <z>
 /waypoint <x> <y> <z> <名称>
 ```
 
+两参数写法会省略 Y，并自动使用玩家当前高度。
+
 `x`、`y`、`z` 都支持 `~` 和 `~<偏移>`。例如只指定高度为当前位置：
 
 ```text
+/waypoint 1000 1000
 /waypoint 1000 ~ 1000
 /waypoint 1000 ~16 1000
 ```
@@ -98,6 +103,7 @@
 - 目的地路径点颜色为金色，图标为 `D`。
 - 名称省略时自动使用 `路径点`，不会把坐标写进名称。
 - `x`、`y`、`z` 支持 `~` 和 `~<偏移>`；相对坐标以玩家当前位置为基准。
+- 省略 Y 的 `/waypoint <x> <z>` 使用玩家当前 Y。
 - 名称最长 64 个字符。
 - 默认写入当前维度；指定 `overworld`、`nether`、`end` 或 `dimension <维度ID>` 时写入对应维度。
 - 目标维度必须已经由 Xaero 创建。若提示找不到维度数据，请先进入该维度一次。
@@ -139,7 +145,7 @@ Loader 最低要求由 Fabric API `0.161.0+26.2` 的依赖 `fabricloader >= 0.18
 成品：
 
 ```text
-build/libs/waypoint-command-1.0.4.jar
+build/libs/waypoint-command-1.0.5.jar
 ```
 
 把该 JAR 和 Xaero's Minimap、Fabric API 一起放入 `mods` 目录即可。

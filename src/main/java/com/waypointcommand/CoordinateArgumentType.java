@@ -49,6 +49,20 @@ public final class CoordinateArgumentType implements ArgumentType<CoordinateArgu
 
     public static int resolve(CommandContext<FabricClientCommandSource> context, String name)
             throws CommandSyntaxException {
+        Axis axis = switch (name) {
+            case "x" -> Axis.X;
+            case "y" -> Axis.Y;
+            case "z" -> Axis.Z;
+            default -> throw new IllegalArgumentException("Unknown coordinate: " + name);
+        };
+        return resolve(context, name, axis);
+    }
+
+    public static int resolve(
+            CommandContext<FabricClientCommandSource> context,
+            String name,
+            Axis axis
+    ) throws CommandSyntaxException {
         Coordinate coordinate = context.getArgument(name, Coordinate.class);
         if (!coordinate.relative()) {
             return coordinate.value();
@@ -60,13 +74,20 @@ public final class CoordinateArgumentType implements ArgumentType<CoordinateArgu
                     .create();
         }
 
-        double base = switch (name) {
-            case "x" -> source.getPlayer().getX();
-            case "y" -> source.getPlayer().getY();
-            case "z" -> source.getPlayer().getZ();
-            default -> throw new IllegalArgumentException("Unknown coordinate: " + name);
+        double base = switch (axis) {
+            case X -> source.getPlayer().getX();
+            case Y -> source.getPlayer().getY();
+            case Z -> source.getPlayer().getZ();
         };
         return (int) Math.floor(base + coordinate.value());
+    }
+
+    public static int currentPlayerY(FabricClientCommandSource source) throws CommandSyntaxException {
+        if (source.getPlayer() == null) {
+            throw new SimpleCommandExceptionType(Component.literal("省略 Y 的坐标只能在玩家上下文中使用"))
+                    .create();
+        }
+        return (int) Math.floor(source.getPlayer().getY());
     }
 
     @Override
@@ -85,4 +106,11 @@ public final class CoordinateArgumentType implements ArgumentType<CoordinateArgu
 
     public record Coordinate(boolean relative, int value) {
     }
+
+    public enum Axis {
+        X,
+        Y,
+        Z
+    }
 }
+
